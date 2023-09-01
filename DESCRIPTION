@@ -1,4 +1,4 @@
-Package: TransportUtils
+Package: TransportModelUtils
 Type: Package
 Title: Models road network data derived from OSM.
 Version: 0.1.0
