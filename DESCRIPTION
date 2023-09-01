@@ -1,0 +1,32 @@
+Package: TransportUtils
+Type: Package
+Title: Models road network data derived from OSM.
+Version: 0.1.0
+Authors@R: 
+        c(person(given = "Indumati",
+             family = "Sharma",
+             role = c("aut", "cre"),
+             email = "indumati.sharma@otago.ac.nz"),
+      person(given = "Martin",
+             family = "Hazelton",
+             role = "aut",
+	     email = "martin.hazelton@otago.ac.nz"))
+Maintainer: Indumati Sharma <indumati.sharma@otago.ac.nz>
+Description: Models road network to predominantly identify the potential routes takes between any given orgin destination nodes.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.3
+Depends: 
+    osmdata,
+    igraph,
+    dplyr,
+    sf,
+    sfnetworks,
+    tidygraph,
+    osmextract,
+    tidyr,
+    tmap,
+    ggplot2,
+    pct,
+    dbscan
