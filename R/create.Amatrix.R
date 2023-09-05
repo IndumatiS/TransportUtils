@@ -8,7 +8,7 @@
 #' @export
 #'
 #' @examples
-create.Amatrix<-function(processed_roadNetwork,census_ODs,sd=0.3){
+create_Amatrix<-function(processed_roadNetwork,census_ODs,sd=0.3){
 
   #define variables
   counter<-1

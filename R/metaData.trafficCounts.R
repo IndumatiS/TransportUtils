@@ -8,7 +8,7 @@
 #' @export
 #'
 #' @examples
-metaData.trafficCounts<-function(a_matrix_list, censusOD_points, region){
+metaData_trafficCounts<-function(a_matrix_list, censusOD_points, region){
   df<-as.data.frame(cbind(a_matrix_list[[2]],a_matrix_list[[3]]))%>% distinct(V1, V2, .keep_all=TRUE)
   oxford.desire.lines<-get_desire_lines(region)
   traffic_countVector<-c()
