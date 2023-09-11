@@ -41,4 +41,6 @@ draw_tmap<-function(sf_network_directed,
       tm_lines(col=col2, lwd=lwd, lty = lty)
 
   }
+
+  return(tmmap)
 }

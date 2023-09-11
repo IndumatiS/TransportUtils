@@ -7,8 +7,14 @@
 convert_0_1(x, matrix_column_length)
 }
 \arguments{
-\item{matrix_column_length}{}
+\item{x}{Every vector in a list}
+
+\item{matrix_column_length}{The length of every vector in argument x.}
+}
+\value{
+A vector of 0s and 1s where 1s indicate the row index that is part of the shortest path and
+0s indicate the route index not part of the shortest path.
 }
 \description{
-Producing matrix columns of 1s and 0s
+This function will be called exclusively from create.Amatrix function.
 }

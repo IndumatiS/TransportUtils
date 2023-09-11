@@ -11,7 +11,7 @@ perturbed_shortestPath(from, to, processed_roadNetwork, sd)
 
 \item{to}{Destination node relating to the list of origin destination input data}
 
-\item{sd}{Standard deviation is applied to re-calculate the time_travelled so to produce more than one shortest
+\item{sd}{Standard deviation is applied to re-calculate the time_traveled so as to produce more than one shortest
 routes between any given OD pairs.}
 }
 \value{
