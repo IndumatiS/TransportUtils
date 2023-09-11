@@ -2,13 +2,20 @@
 % Please edit documentation in R/snapped_geometry_script.R
 \name{snapped_geometry_script}
 \alias{snapped_geometry_script}
-\title{Title}
+\title{Snapped Geometry}
 \usage{
 snapped_geometry_script(rowIndex, processed_roadNetwork, census_ODs)
 }
 \arguments{
-\item{census_ODs}{}
+\item{rowIndex}{The row index of origin destination table}
+
+\item{processed_roadNetwork}{The final sf_network after undergoing network processing.}
+
+\item{census_ODs}{Table of origin destination data.}
+}
+\value{
+rowIndex of the sf_network which is closest to the origin destination node.
 }
 \description{
-Title
+The coordinates from of the origin destination nodes are mapped to the closest node on the sf_network.
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/convert_0_1.R
 \name{convert_0_1}
 \alias{convert_0_1}
-\title{Title}
+\title{Producing matrix columns of 1s and 0s}
 \usage{
 convert_0_1(x, matrix_column_length)
 }
@@ -10,5 +10,5 @@ convert_0_1(x, matrix_column_length)
 \item{matrix_column_length}{}
 }
 \description{
-Title
+Producing matrix columns of 1s and 0s
 }

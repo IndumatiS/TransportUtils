@@ -2,13 +2,18 @@
 % Please edit documentation in R/directed_network.R
 \name{directed_network}
 \alias{directed_network}
-\title{Title}
+\title{Creating directed network}
 \usage{
 directed_network(sf_network)
 }
 \arguments{
-\item{sf_network}{}
+\item{sf_network}{The processed sf_network after network processing step.}
+}
+\value{
+sf_network This sf_network will have approximately twice the number of edges
+and the same number of nodes as the original sf_network passed as an argument.
 }
 \description{
-Title
+Creates directed network by reversing the start and end coordinates of two way roads
+and adding these as extra edges on the final sf_network.
 }

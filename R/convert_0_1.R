@@ -1,9 +1,11 @@
-#' Title
+#' Producing matrix columns of 1s and 0s
 #'
-#' @param x
-#' @param matrix_column_length
+#' This function will be called exclusively from create.Amatrix function.
+#' @param x Every vector in a list
+#' @param matrix_column_length The length of every vector in argument x.
 #'
-#' @return
+#' @return A vector of 0s and 1s where 1s indicate the row index that is part of the shortest path and
+#' 0s indicate the route index not part of the shortest path.
 #' @export
 #'
 #' @examples

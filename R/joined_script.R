@@ -1,0 +1,31 @@
+#' @title A sample sf_network of Oxford region
+#'
+#' @description This is an sf_network of Oxford region where the lines and polygon data have been spatially joined.
+#' This data provides an example of what a sf_network objects looks like and also is an argument to run many of the example
+#' codes.
+#'
+#' @usage
+#' data(joined_script) #Lazy loading since this will not be loaded onto the memory.
+#' The data becomes available only when the user queries it.
+#' library(dplyr)
+#' edges_df<-joined_script%>%sfnetworks::activate(edges)%>%sf::st_as_sf()
+#' nodes_df<-joined_script%>%sfnetworks::activate(nodes)%>%sf::st_as_sf()
+#'
+#'@format the data is of the class sfnetwork, tbl_graph and igraph. Upon converting the data to an sf_object the user can see the values of the columns as follows:
+#' \describe{
+#'    \item{from}{starting node}
+#'    \item{to}{destination node}
+#'    \item{highway}{types of roads}
+#'    \item{osm_id}{road id}
+#'    \item{oneway}{whether the street is one way or two way - logical}
+#'    \item{maxspeed}{speed limit for that road}
+#'    \item{road_levels}{the road_level importance is rated from 1 to 10 where 1 being the major arterial road and 10 being roads likes walkways}
+#'    \item{higway_media}{calculated median speed limit across each of the road types}
+#'    \item{polygon levels}{NA since maxspeed information is not available for polygon data from OSM}
+#'    \item{.tidygraph_edge_index}{}
+#'    \item{weight}{road length (or distance) in meters}
+#'    \item{time_travelled}{time required to travel on that section of the road - time/road length}
+#' }
+#'
+"joined_script"
+

@@ -29,4 +29,5 @@ Depends:
     tmap,
     ggplot2,
     pct,
-    dbscan
+    dbscan,
+    R (>= 2.10)

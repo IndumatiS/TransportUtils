@@ -2,7 +2,7 @@
 % Please edit documentation in R/shortest_pathInNetwork.R
 \name{shortest_pathInNetwork}
 \alias{shortest_pathInNetwork}
-\title{Title}
+\title{Shortest Path in the Network}
 \usage{
 shortest_pathInNetwork(
   processed_roadNetwork,
@@ -12,8 +12,17 @@ shortest_pathInNetwork(
 )
 }
 \arguments{
+\item{processed_roadNetwork}{sf_network after undergoing network processing}
+
+\item{ToRowNumber}{Origin node relating to the list of origin destination input data}
+
+\item{FromRowNumber}{Destination node relating to the list of origin destination input data}
+
 \item{census_ODs}{}
 }
+\value{
+vector of row indices of edges part of the shortest path network
+}
 \description{
-Title
+Shortest Path in the Network
 }

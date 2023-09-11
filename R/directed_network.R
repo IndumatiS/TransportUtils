@@ -1,8 +1,11 @@
-#' Title
+#' Creating directed network
 #'
-#' @param sf_network
+#' Creates directed network by reversing the start and end coordinates of two way roads
+#' and adding these as extra edges on the final sf_network.
+#' @param sf_network The processed sf_network after network processing step.
 #'
-#' @return
+#' @return sf_network This sf_network will have approximately twice the number of edges
+#' and the same number of nodes as the original sf_network passed as an argument.
 #' @export
 #'
 #' @examples

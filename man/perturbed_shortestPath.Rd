@@ -7,7 +7,15 @@
 perturbed_shortestPath(from, to, processed_roadNetwork, sd)
 }
 \arguments{
-\item{sd}{}
+\item{from}{Origin node relating to the list of origin destination input data}
+
+\item{to}{Destination node relating to the list of origin destination input data}
+
+\item{sd}{Standard deviation is applied to re-calculate the time_travelled so to produce more than one shortest
+routes between any given OD pairs.}
+}
+\value{
+vector of row indices of edges part of the shortest path network
 }
 \description{
 Title

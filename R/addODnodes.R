@@ -1,4 +1,4 @@
-#' Title
+#'
 #'
 #' @param lat_col
 #' @param long_col

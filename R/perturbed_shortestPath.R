@@ -1,11 +1,12 @@
 #' Title
 #'
-#' @param from
-#' @param to
+#' @param from Origin node relating to the list of origin destination input data
+#' @param to Destination node relating to the list of origin destination input data
 #' @param processed_roadNetwork
-#' @param sd
+#' @param sd Standard deviation is applied to re-calculate the time_traveled so as to produce more than one shortest
+#' routes between any given OD pairs.
 #'
-#' @return
+#' @return vector of row indices of edges part of the shortest path network
 #' @export
 #'
 #' @examples
