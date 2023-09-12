@@ -1,13 +1,18 @@
-#' Title
+#' Traffic count meta data from UK census
+#'
+#' This function extracts the traffic counts from UK census data for each of the
+#' origin destination provided.
+#'
 #'
 #' @param a_matrix_list
 #' @param censusOD_points
 #' @param region
 #'
-#' @return
+#' @return dataframe
 #' @export
 #'
 #' @examples
+#' metaData_trafficCounts(a_matrix_list, censusOD_points, "oxford")
 metaData_trafficCounts<-function(a_matrix_list, censusOD_points, region){
   df<-as.data.frame(cbind(a_matrix_list[[2]],a_matrix_list[[3]]))%>% distinct(V1, V2, .keep_all=TRUE)
   oxford.desire.lines<-get_desire_lines(region)

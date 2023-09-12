@@ -14,10 +14,6 @@ shortest_pathInNetwork(
 \arguments{
 \item{processed_roadNetwork}{sf_network after undergoing network processing}
 
-\item{ToRowNumber}{Origin node relating to the list of origin destination input data}
-
-\item{FromRowNumber}{Destination node relating to the list of origin destination input data}
-
 \item{census_ODs}{}
 }
 \value{

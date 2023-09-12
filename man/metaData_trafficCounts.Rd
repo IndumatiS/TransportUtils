@@ -2,13 +2,20 @@
 % Please edit documentation in R/metaData.trafficCounts.R
 \name{metaData_trafficCounts}
 \alias{metaData_trafficCounts}
-\title{Title}
+\title{Traffic count meta data from UK census}
 \usage{
 metaData_trafficCounts(a_matrix_list, censusOD_points, region)
 }
 \arguments{
 \item{region}{}
 }
+\value{
+dataframe
+}
 \description{
-Title
+This function extracts the traffic counts from UK census data for each of the
+origin destination provided.
+}
+\examples{
+metaData_trafficCounts(a_matrix_list, censusOD_points, "oxford")
 }

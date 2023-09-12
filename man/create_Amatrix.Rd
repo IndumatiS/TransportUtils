@@ -6,20 +6,31 @@
 Shortest route is calculated using Dijkstra's algorithm using the weight time traveled (road speed/ length of road).
 Potential shortest routes are also identified using perturbed time traveled where the weights are perturbed by a
 standard deviation of 0.3 (user has the option to change sd per their choice).
-Thus every origin destination  pair of nodes will have atleast one shortest route and may have more than one
-shortest routes based on}
+Thus every origin destination  pair of nodes will have at least one shortest route and may have more than one
+shortest routes based on the perturbed weight column (i.e., time traveled).}
 \usage{
 create_Amatrix(processed_roadNetwork, census_ODs, sd = 0.3)
 }
 \arguments{
-\item{sd}{Standard deviation is applied to re-calculate the time_travelled so to produce more than one shortest
+\item{sd}{Standard deviation is applied to re-calculate the time_traveled so to produce more than one shortest
 routes between any given OD pairs. Default set of 0.3.}
+}
+\value{
+List. List[[1]]- Origin-Destination pairs pertaining to the shortest route output in List[[4]].
+              List[[2]]-Origin nodes pertaining to the shortest route output in List[[4]].
+              List[[3]]-Destination nodes pertaining to the shortest route output in List[[4]].
+              List[[4]]- Numeric vector (of 0s and 1s) indication the shortest routes.
 }
 \description{
 Creates A-matrix
 Shortest route is calculated using Dijkstra's algorithm using the weight time traveled (road speed/ length of road).
 Potential shortest routes are also identified using perturbed time traveled where the weights are perturbed by a
 standard deviation of 0.3 (user has the option to change sd per their choice).
-Thus every origin destination  pair of nodes will have atleast one shortest route and may have more than one
-shortest routes based on
+Thus every origin destination  pair of nodes will have at least one shortest route and may have more than one
+shortest routes based on the perturbed weight column (i.e., time traveled).
+}
+\examples{
+data(c(joined_script, censusOD_points))
+aMatrix<-create_Amatrix(joined_script, censusOD_points)
+
 }

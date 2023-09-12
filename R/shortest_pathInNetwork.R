@@ -1,8 +1,8 @@
 #' Shortest Path in the Network
 #'
 #' @param processed_roadNetwork sf_network after undergoing network processing
-#' @param ToRowNumber Origin node relating to the list of origin destination input data
-#' @param FromRowNumber Destination node relating to the list of origin destination input data
+#' @param ToRowNumber
+#' @param FromRowNumber
 #' @param census_ODs
 #'
 #' @return vector of row indices of edges part of the shortest path network
