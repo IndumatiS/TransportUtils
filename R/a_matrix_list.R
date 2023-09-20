@@ -1,0 +1,21 @@
+#' @title A sample sf_network of Oxford region
+#'
+#' @description This is an sf_network of Oxford region where the lines and polygon data have been spatially joined.
+#' This data provides an example of what a sf_network objects looks like and also is an argument to run many of the example
+#' codes.
+#'
+#' @usage
+#' data(a_matrix_list) #Lazy loading since this will not be loaded onto the memory.
+#' The data becomes available only when the user queries it.
+
+#'
+#'@format the data is a list
+#' \describe{
+#'    \item{a_matrix_list[[1]]}{Origin-Destination pairs pertaining to the shortest route output in List[[4]]}
+#'    \item{a_matrix_list[[2]]}{Origin nodes pertaining to the shortest route output in List[[4]]}
+#'    \item{a_matrix_list[[3]]}{Destination nodes pertaining to the shortest route output in List[[4]]}
+#'    \item{a_matrix_list[[4]]}{Numeric vector (of 0s and 1s) indication the shortest routes}
+#'
+#' }
+#'
+"a_matrix_list"

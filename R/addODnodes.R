@@ -1,4 +1,4 @@
-#'
+#' Map origin destination nodes on the sf_network
 #'
 #' @param lat_col
 #' @param long_col
@@ -12,6 +12,8 @@
 #' @examples
 addODnodes<-function(lat_col, long_col, crs, sf_network_directed, inputCoordinatedf){
   data_sf <- st_as_sf(inputCoordinatedf, coords = c(lat_col, long_col), crs = crs )
+
+
   nearest_nodes_script = st_nearest_feature(data_sf, sf_network_directed%>% activate("nodes"))
   snapped_pois_script = sf_network_directed %>% activate("nodes") %>% st_as_sf() %>% select(geometry)  %>% slice(nearest_nodes_script)
 

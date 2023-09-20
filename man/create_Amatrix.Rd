@@ -2,12 +2,7 @@
 % Please edit documentation in R/create.Amatrix.R
 \name{create_Amatrix}
 \alias{create_Amatrix}
-\title{Creates A-matrix
-Shortest route is calculated using Dijkstra's algorithm using the weight time traveled (road speed/ length of road).
-Potential shortest routes are also identified using perturbed time traveled where the weights are perturbed by a
-standard deviation of 0.3 (user has the option to change sd per their choice).
-Thus every origin destination  pair of nodes will have at least one shortest route and may have more than one
-shortest routes based on the perturbed weight column (i.e., time traveled).}
+\title{Creates A-matrix}
 \usage{
 create_Amatrix(processed_roadNetwork, census_ODs, sd = 0.3)
 }
@@ -22,7 +17,6 @@ List. List[[1]]- Origin-Destination pairs pertaining to the shortest route outpu
               List[[4]]- Numeric vector (of 0s and 1s) indication the shortest routes.
 }
 \description{
-Creates A-matrix
 Shortest route is calculated using Dijkstra's algorithm using the weight time traveled (road speed/ length of road).
 Potential shortest routes are also identified using perturbed time traveled where the weights are perturbed by a
 standard deviation of 0.3 (user has the option to change sd per their choice).
@@ -30,7 +24,8 @@ Thus every origin destination  pair of nodes will have at least one shortest rou
 shortest routes based on the perturbed weight column (i.e., time traveled).
 }
 \examples{
-data(c(joined_script, censusOD_points))
-aMatrix<-create_Amatrix(joined_script, censusOD_points)
+data(joined_script)
+data(censusOD_points)
+aMatrix<-create_Amatrix(joined_script, censusOD_points[[2]])
 
 }

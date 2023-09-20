@@ -1,4 +1,5 @@
 #' Creates A-matrix
+#'
 #' Shortest route is calculated using Dijkstra's algorithm using the weight time traveled (road speed/ length of road).
 #' Potential shortest routes are also identified using perturbed time traveled where the weights are perturbed by a
 #' standard deviation of 0.3 (user has the option to change sd per their choice).
@@ -17,8 +18,9 @@
 #' @export
 #'
 #' @examples
-#' data(c(joined_script, censusOD_points))
-#' aMatrix<-create_Amatrix(joined_script, censusOD_points)
+#' data(joined_script)
+#' data(censusOD_points)
+#' aMatrix<-create_Amatrix(joined_script, censusOD_points[[2]])
 #'
 create_Amatrix<-function(processed_roadNetwork,census_ODs,sd=0.3){
 
