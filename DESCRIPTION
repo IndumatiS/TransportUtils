@@ -30,4 +30,5 @@ Depends:
     ggplot2,
     pct,
     dbscan,
+    pracma,
     R (>= 2.10)

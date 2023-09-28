@@ -75,6 +75,8 @@ create_Amatrix<-function(processed_roadNetwork,census_ODs,sd=0.3){
   return_list[[3]]<-purrr::flatten(destination_list)
   return_list[[4]]<-do.call(cbind,purrr::flatten(a_matrix))
 
+  names(return_list)<-c("ODnodePair_col","OriginNode_col", "DestinationNode_col", "A_matrix")
+
 
   return(return_list)
 }

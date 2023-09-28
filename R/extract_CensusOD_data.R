@@ -52,6 +52,7 @@ extract_CensusOD_data<-function(region, crs){
 
   returnList[[1]]<-list1
   returnList[[2]]<-list2
+  names(returnList)<-c("censusTrafficDemands","UniqueODnodes")
 
   return(returnList) #test this
 }
