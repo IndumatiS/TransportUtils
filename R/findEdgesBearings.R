@@ -11,8 +11,8 @@
 #' @export
 #'
 #' @examples
-#' directiondf<-findEdgesDirection(joined_script)
-findEdgesDirection<-function(joined_script){
+#' directiondf<-findEdgesBearings(joined_script)
+findEdgesBearings<-function(joined_script){
 
  edges_df<-joined_script %>% activate("edges") %>% st_as_sf()
  edgesdf<-st_transform(edges_df, crs = "WGS84")
