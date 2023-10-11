@@ -1,5 +1,5 @@
 
-#' Direction of the traffic flow information
+#' Bearings of the traffic flow information
 #'
 #' @description Identifies direction of the traffic flow information.
 #' Every edge within the network has traffic flow information and starting and ending coordinates. Using the start and end coordinates
