@@ -1,5 +1,14 @@
 #Assign one of the four directions based on the bearings information
 
+#' Determines the direction of the bearings
+#'
+#' @param bearings
+#' @param userDataSliced
+#'
+#' @return
+#' @export
+#'
+#' @examples
 assign_direction<-function(bearings, userDataSliced){
  # browser()
   userDirection_Vector<-userDataSliced$Direction

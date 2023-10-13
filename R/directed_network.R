@@ -15,7 +15,7 @@ directed_network<-function(sf_network){
     filter(oneway==FALSE) %>%
     st_reverse() %>%
     st_as_sf()
-browser()
+
   roads.clean.df<-sf_network %>%
     activate("edges") %>%
     st_as_sf()

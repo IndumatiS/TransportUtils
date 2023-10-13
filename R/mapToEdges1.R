@@ -16,7 +16,7 @@ mapToEdges1<-function(userData, sf_network, crs, lat_col, long_col,SiteColname){
   transformedCRS<-as.data.frame(userData) %>%
     st_as_sf(coords = c(long_col, lat_col), crs=4326) %>%
     st_transform(crs=crs)
-uniqueSites<-unique(userData[[SiteColname]])
+  uniqueSites<-unique(userData[[SiteColname]])
 
   #for each of the unique sites identify the nearest edge, including the
   #the edge travelling the opposite direction. Extract counts and direction information
@@ -39,37 +39,47 @@ uniqueSites<-unique(userData[[SiteColname]])
       #For one way roads
       if(sliced_sfnetwork$oneway==TRUE){
         list1[[i]]<-sliced_sfnetwork   %>%
-        mutate(usercounts=sliced_userData$Count[1][indicies[1]],
-               userDirection=sliced_userData$Direction[1][indicies[1]])
+          st_as_sf() %>%
+        mutate(usercounts=sliced_userData$Count[indicies[1]],
+               userDirection=sliced_userData$Direction[indicies[1]])
 
       }
       #For two way roads
     if(sliced_sfnetwork$oneway==FALSE){
+      #browser()
+
       sfnetworkTwo<-joined_script %>%
         activate("edges") %>%
         st_as_sf() %>%
         slice(-nearestEdge_indicies) %>%
         as_sfnetwork()
-      secondnearestEdge_indicies<-st_nearest_feature(sliced_userData[1,], sfnetworkTwo%>%
+
+      secondnearestEdge_indicies<-st_nearest_feature(sliced_userData[1,],
+                                                     sfnetworkTwo%>%
                                                       activate("edges"))
       sliced_sfnetworkTwo<-sfnetworkTwo %>%
         activate("edges") %>%
         st_as_sf() %>%
         slice( secondnearestEdge_indicies)
 
-      sliced_sfnetwork<-rbind(sliced_sfnetwork,sliced_sfnetworkTwo)
-      indicies<-assign_direction(sliced_sfnetwork$BearingsInDegrees[1], userDataSliced=sliced_userData)
 
+      indicies<-assign_direction(sliced_sfnetwork$BearingsInDegrees[1],
+                                 userDataSliced=sliced_userData)
+
+      #Add counts and direction information based on the values returned by assign_directions
       sliced_sfnetwork<-sliced_sfnetwork%>%
-        mutate(usercounts=sliced_userData$Count[1][indicies[1]],
-               userDirection=sliced_userData$Direction[1][indicies[1]])
+        mutate(usercounts=sliced_userData$Count[indicies[1]],
+               userDirection=sliced_userData$Direction[indicies[1]])
 
-      list1[[i]]<-sliced_sfnetwork%>%
-        mutate(usercounts=sliced_userData$Count[2][indicies[2]],
-               userDirection=sliced_userData$Direction[2][indicies[2]])
+      sliced_sfnetworkTwo<- sliced_sfnetworkTwo%>%
+        mutate(usercounts=sliced_userData$Count[indicies[2]],
+               userDirection=sliced_userData$Direction[indicies[2]])
 
+      #rbind the two sliced sfnetwork
+      list1[[i]]<-rbind(sliced_sfnetwork,sliced_sfnetworkTwo)
 
     }
+      #print(list1[[i]])
 
     }
 
