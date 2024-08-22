@@ -93,7 +93,7 @@ mapToEdges<-function(userData, sf_network, crs, lat_col, long_col,SiteColname){
 
   return_list[[1]]<-list1
   return_list[[2]]<-list2
-  browser()
-  #names(return_list)<-c("TwoWay_trafficCounts","OneWay_trafficCounts")
+  return_list[[3]]<-transformedCRS
+
   return(return_list)
 }

@@ -1,0 +1,227 @@
+---
+title: "TransportUtlis_ vignette"
+output: html_document
+date: "2023-10-18"
+---
+
+#Network processing
+Data is extracted from open source map (OSM)- both lines and polygon data is extracted. The data is modified to be compatible for network processing. 
+
+
+```{r}
+devtools::install_github("IndumatiS/TransportUtils") 
+library(TransportUtils)
+
+#Clear all objects in the global environment
+rm(list = ls())
+
+# #Detach package
+#if("TransportUtils" %in% (.packages())){
+#detach("package:TransportUtils", unload=TRUE) 
+#}
+
+```
+
+```{r}
+#Download all the osm data related to the bounding box coordinates
+osm_data<-extract_data( c(-2.813331,-2.784835,54.042449,54.057163))
+
+#oxford-c(-1.41785, -1.09785, 51.59201, 51.91201)
+#luton - c( -0.4828, -0.3804  ,51.870, 51.9219)
+#liverpool - c( -3.169003, -2.795235, 53.344871, 53.494705)
+#reading - c( -1.061579,  -0.879234, 51.423914, 51.485112) region= "berkshire"
+#leeds - c(-2.049094, -1.103631, 53.308279,53.983995)
+
+#Extract lines data
+osm_roads_data<-modify_Linesdata(osm_data, road_types = c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
+                                                          'secondary_link' ,'tertiary' , 'tertiary_link' ),road_levels = NULL, crs=9766)
+
+
+
+#Extract polygon data
+osm_polygon_data<-modify_Polygondata(osm_data,road_types=c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
+                                                           'secondary_link' ,'tertiary' , 'tertiary_link' ), road_levels = NULL, crs=9766 )
+
+#Data processing on lines data
+osm_roads_processed<-lineString_rounding(osm_roads_data,rounding=3) %>% as_sfnetwork(directed= FALSE) %>% simplify_sf_data()
+
+#Data processing on polygonlines data
+osm_polygons_processed<-lineString_rounding(osm_polygon_data,rounding=3) %>% as_sfnetwork(directed= FALSE)
+
+#Join the lines and polygon data, and process the joined data
+joined_script <- st_network_join(osm_roads_processed, osm_polygons_processed) %>% 
+  network_preProcessing() %>% 
+  directed_network() %>% 
+  findEdgesBearings()
+
+```
+
+
+
+#Visualise processed network
+```{r}
+################################Plotting###############################################
+autoplot(joined_script) # a quick easy way to visualise the processed network. 
+
+viewSf_network(joined_script)  # another way to visualise the network is through tmap library. 
+#list(a=c(1:3),b=c(2;4)) name the list.
+################################Plotting###############################################
+
+```
+
+
+#Deriving origin destination (OD) points from UK-Census data.
+The od points are mapped onto the nearest nodes within the processed network. These are then visualised by layering it on to the processed network. 
+```{r}
+#Derive OD points from UK census for the selected region and add them on the network
+#View(pct_regions_lookup)
+censusOD_data<-extract_CensusOD_data(region="oxford", crs=9766)
+mapped_OD_nodes<-addODnodes(lat_col="X", long_col="Y", crs=9766, sf_network_directed=joined_script, inputCoordinatedf=censusOD_data[[2]])
+
+#Map all the OD points nearest to the nodes on the final network
+tmap_mode("view") # set to interactive mode
+tm_tiles("CartoDB.Positron") +
+  tm_shape(st_as_sf(joined_script, "edges")) +
+  tm_lines(col= "highway", palette = "Accent", lwd=5) +
+  tm_shape(st_as_sf(joined_script, "nodes")) +
+  tm_dots(text = "degree") +
+  #tm_shape(st_as_sf(mapped_OD_nodes))+
+  tm_dots(col="red")
+############################################################################################
+
+```
+
+
+#Creating A-matrix.
+This involves finding all shortest path between every pair of OD nodes. Meta data related to traffic counts from census data is also added onto A matrix. 
+
+```{r}
+#Create A-matrix
+censusOD_points_df<-as.data.frame(mapped_OD_nodes)
+a_matrix_list<-create_Amatrix(processed_roadNetwork=joined_script, census_ODs=censusOD_points_df,sd=0.3)
+traffic_counts<-metaData_trafficCounts(a_matrix_list, censusOD_points, region="oxford")
+```
+
+
+#Shortest path
+Visualise shortest path between any given OD pairs.This helps in validating shortest path function in sf_network. 
+
+```{r}
+################################### to view the processed network and shortest path#########################  
+#Shortest path network on a directed network - identifies shortest path between any two given vertices weighted by time traveled  column
+shortest_path<-shortest_pathInNetwork(joined_script,7,20,censusOD_points[[2]])
+shortest_reversed_path<-shortest_pathInNetwork(joined_script,20,7,censusOD_points[[2]])
+
+
+
+#Map shortest paths on the simplified directed network
+map<-draw_tmap(sf_network_directed=joined_script, 
+               shortestPath_network=shortest_path, 
+               shortestPathReverse_network=shortest_reversed_path, 
+               ToRowNumber=7, 
+               FromRowNumber=20)
+
+map
+```
+
+
+
+#Random OD points from the exsisting sf_network.
+```{r}
+######################################################################################################### 
+#From user select OD points
+#First convert the dataframe which has latitude and longitude in separate columns as sf_object
+
+#For example - take some random nodes from Oxford region- this is just to demonstrate as to how the input
+#coordinates information needs to be in, so as to map them onto the network. 
+nodes<-joined_script %>% activate("nodes") %>% st_as_sf()
+random_sample <- sample(1:(nrow(nodes)), 20)
+nodes_df<-as.data.frame(st_coordinates(nodes)[random_sample,])
+
+
+#Next three lines indicate how to incorporate lat long coordinates in a dataframe as an sf dataframe
+
+addODnodes<-function(lat_col, long_col, crs, sf_network_directed, inputCoordinatedf){
+  data_sf <- st_as_sf(inputCoordinatedf, coords = c(lat_col, long_col), crs = crs )
+  nearest_nodes_script = st_nearest_feature(data_sf, sf_network_directed%>% activate("nodes"))
+  snapped_pois_script = unique(sf_network_directed %>% activate("nodes") %>% st_as_sf() %>% select(geometry)  %>% slice(nearest_nodes_script))
+  
+  return(snapped_pois_script)
+}
+
+snapped_pois_script<-addODnodes (lat_col = "X", 
+                                 long_col = "Y", 
+                                 crs= 9766, 
+                                 sf_network_directed = joined_script,
+                                 inputCoordinatedf = nodes_df)
+
+
+################################### to view the processed network and shortest path#########################  
+#Shortest path network on a directed network - identifies shortest path between any two given vertices weighted by time traveled  column
+shortest_path<-shortest_pathInNetwork(joined_script,2,1,snapped_pois_script)
+shortest_reversed_path<-shortest_pathInNetwork(joined_script,1,2,snapped_pois_script)
+
+#To view all the mapped ODs on the network
+tmap_mode("view") # set to interactive mode
+tm_tiles("CartoDB.Positron") +
+  tm_shape(st_as_sf(joined_script , "edges")) +
+  tm_lines(col= "oneway", palette = "Accent", lwd=5) +
+  #tm_shape(st_as_sf(joined_connectedNetwork , "nodes")) +
+  tm_dots(text = "degree") +
+  tm_shape(st_as_sf(snapped_pois_script))+
+  tm_dots(col="red")
+
+#To view the shortest paths between a pair of OD points on the network
+
+map<-draw_tmap(sf_network_directed=joined_script, 
+               shortestPath_network=shortest_path, 
+               shortestPathReverse_network=shortest_reversed_path, 
+               #OD_sf_network=nodes_df,
+               ToRowNumber=1, 
+               FromRowNumber=2)
+
+
+####################################################################################################################
+#To validate the output of the a_matrix function, one of the columns need to be selected and the rows which are part of the network 
+#would then the used to slice the final processed network.
+
+a_matrix_index<-as.numeric(as.data.frame(a_matrix_list[[4]]) %>% subset(V23==1) %>% rownames())
+sliced_sf_network<- slice(joined_script %>% activate("edges"), a_matrix_index)
+
+
+joined_connectedNetwork <- joined_script %>% 
+  activate(nodes) %>% 
+  mutate(neighbourhood = local_size(order = 6)) %>% 
+  filter(neighbourhood > 5)
+```
+
+
+
+
+
+```{r}
+
+####################################################################################################################
+#Incorporate user supplied traffic counts
+data("link_data") #only for Oxford region
+mapped_nodesToEdges<-mapToEdges(userData=link_data, 
+                                sf_network=joined_script, 
+                                crs=9766, 
+                                lat_col="Lat", 
+                                long_col= "Long",
+                                SiteColname="Site")
+  
+mapped_ToEdgesdf<-do.call(rbind,mapped_nodesToEdges[[1]]) 
+
+#Map all the OD points nearest to the nodes on the final network
+tmap_mode("view") # set to interactive mode
+tm_tiles("CartoDB.Positron") +
+  tm_shape(st_as_sf(joined_script, "edges")) +
+  tm_lines() +
+  tm_shape(st_as_sf(joined_script, "nodes")) +
+  tm_dots() +
+  tm_shape((mapped_ToEdgesdf))+
+  tm_lines(col="green") +
+  tm_shape((mapped_nodesToEdges))+
+  tm_dots(col="red") 
+```
