@@ -58,12 +58,12 @@ modify_Linesdata<-function(sf_data, road_types=NULL,road_levels = NULL, crs){
                 'secondary_link' ,'tertiary' , 'tertiary_link' ,  'residential' ,'living_street', 'unclassified')")
 
 
-  roads.data<-roads.data %>% select(osm_id, highway ,oneway, maxspeed,geometry, road_levels) %>% as.data.frame()
+  roads.data<-roads.data %>% dplyr::select(osm_id, highway ,oneway, maxspeed,geometry, road_levels) %>% as.data.frame()
 
 
   roads.data$maxspeed<-as.numeric(gsub("([0-9]+).*$", "\\1", roads.data$maxspeed))
 
-  dplyr.roads.data<-roads.data %>% select(-geometry)%>% group_by(highway) %>% summarise(highway_median=median(maxspeed*1.60934, na.rm=TRUE)) #convert mph to kmph
+  dplyr.roads.data<-roads.data %>% dplyr::select(-geometry)%>% group_by(highway) %>% summarise(highway_median=median(maxspeed*1.60934, na.rm=TRUE)) #convert mph to kmph
 
   roads.data = merge(roads.data, dplyr.roads.data, by.x=c("highway", "highway"))
 
