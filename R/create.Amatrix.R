@@ -65,7 +65,7 @@ create_Amatrix<-function(processed_roadNetwork,census_ODs,sd=0.3){
 
         #browser()
         counter<-counter+1
-        print(i)
+
       }
     }
   }
