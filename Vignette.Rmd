@@ -1,14 +1,17 @@
 ---
 title: "TransportUtlis_ vignette"
-output: html_document
-date: "2023-10-18"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-08-23"
+Author: Indumati Sharma and Martin Hazelton
 ---
 
 #Network processing
 Data is extracted from open source map (OSM)- both lines and polygon data is extracted. The data is modified to be compatible for network processing. 
 
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 devtools::install_github("IndumatiS/TransportUtils") 
 library(TransportUtils)
 
@@ -22,25 +25,90 @@ rm(list = ls())
 
 ```
 
-```{r}
+Select the region of interest and input the projected coordinates (WGS 84 Web Mercator). Here we will use Oxford coordinates as a starting example. 
+
+```{r,message=FALSE, warning=FALSE}
 #Download all the osm data related to the bounding box coordinates
-osm_data<-extract_data( c(-2.813331,-2.784835,54.042449,54.057163))
+osm_data<-extract_data( c(-1.41785, -1.09785, 51.59201, 51.91201))
 
 #oxford-c(-1.41785, -1.09785, 51.59201, 51.91201)
 #luton - c( -0.4828, -0.3804  ,51.870, 51.9219)
 #liverpool - c( -3.169003, -2.795235, 53.344871, 53.494705)
 #reading - c( -1.061579,  -0.879234, 51.423914, 51.485112) region= "berkshire"
 #leeds - c(-2.049094, -1.103631, 53.308279,53.983995)
+# - c(-2.813331,-2.784835,54.042449,54.057163)
+```
 
+
+Before venturing into modelling road transport, we first need to understand which coordinate reference system (CRS) is the best fit for our selected region. To select optimal CRS manually, its possible to identify few CRS options simply by inputting region name, country or coordinates. This vignette uses Oxford region, and CRS ESPG:9766 was found to be effective. Hence this CRS has been used for the remaining part of the vignette document.
+
+For those who want to experiment with couple of CRS, you can try out suggestCRS package in R. If you do use suggestCRS package, always check to see if the select CRS represent the region of interest correctly. If not, then try couple of more CRS to see which of them fit the best. 
+  
+```{r}
+library(crsuggest)
+library(sf)
+suggest_crs(osm_data$osm_lines)
+```
+
+For this analysis, we've decided to keep only certain types of roads. The chunk below filters the sf object appropriately (to keep only main roads).
+
+Before converting to sfnetwork, the sf object needs to undergo the following modifications:
+1) Conversion of geometry to linestring from multilinestrings. This will give a warning stating that the attributes are being repeated for all sub-geometries, and that this may not be accurate. (For example, if a multilinestring has a given speed limit associated with it, the linestrings will each have that speed limit.)
+2) Rounding the coordinates - Reducing the precision of coordinates will ensure that they are in the same place, thereby allowing sfnetworks to connect
+
+Once the geometry is a linestring and coordinate precision has been reduced, we then convert the road network (currently an sf object) to an sfnetwork object. Note the options used in this case. 
+
+Setting directed=FALSE means that we are creating an undirected graph. OSM does not typically contain directionality data in a way that can readily be transferred to a graph. Additionally, road networks typically are undirected, with roads being two-way.
+
+(In our case because we need to incorporate one way roads whilst calculating shortest path it is essential that the graph network needs to be directed in nature. This is only done once all the pre-processing is done on the network ).
+
+## Data cleaning
+
+### Simplify
+A network may contain sets of edges that connect the same pair of nodes. Such edges can be called multiple edges. Also, it may contain an edge that starts and ends at the same node. Such an edge can be called a loop edge.
+
+In graph theory, a simple graph is defined as a graph that does not contain multiple edges nor loop edges. To obtain a simple version of our network, we can remove multiple edges and loop edges by calling tidygraphs edge filter functions tidygraph::edge_is_multiple() and tidygraph::edge_is_loop(). This step is critical, since skipping this step leads to improper output when we contract the network later on. 
+
+The first data cleaning step is to simplify the road network. This changes the graph from a multigraph to a simple graph, which is required for many graph operations.
+
+### Add polygon information
+In order to simplify intersections (which is accomplished in the later part of the script), the roads defining the intersections need to be connected to the roads branching out of the intersections. In the context of roundabouts, the actual road that defines a roundabout needs to be present within a network in order for the intersection simplification function to work. In the current example, most of the roundabouts do not have roads connecting the road junctions. The road junctions simply stop at the roundabout area and do not connect with each other in any way. This is the reason as to why  intersection simplification is not working consistently across all the roundabouts (those roundabouts where such simplification is working have the junctions connected within the roundabout). 
+
+To overcome this problem, we need the junctions to be connected within the roundabout region. One approach is to extract polygon data for "Oxford" region (wherein the great majority of the data is related to roundabouts) and join them on the the lines data of "Oxford" region.
+
+The next trouble is to identify where in the script this step needs to be performed. At step 1 the lines data undergoes network simplification which includes removing multiple and looped edges. Since polygon data is a loop edge, performing the join operation (joining lines data with polygon data) will be useless, as polygon data will be removed. At the same time, step 1 is critical since multiple and looped edges have to be removed for network simplification. Hence, the join operation is done after Step 1, and the joined network object will then be carried on further for spatial network processing. 
+
+### Subdivide
+Next, we subdivide edges which are junctions. At these points, new nodes are created. 
+
+### Smooth pseudo nodes
+
+Next we need to remove redundant nodes. The way to_spatial_smooth operates depends on whether the graph is directed or not. In the case of directed network, pseudo nodes are those nodes that have only one incoming and one outgoing edge. In undirected networks, pseudo nodes are those nodes that have two incident edges.
+
+This is the step in which its important to ensure the graph is undirected since we need to remove nodes that have degree=2. In the argument summarise_attibute I have given "first" as the value. When the pseudo nodes are removed, the flanking roads are then connected. However, the question is what sort of attribute would the newly formed road take up? In the summarise_attributes argument the user can specify what kind of attribute the new road can take up. Here I have specified "first", which means that the attributes from the first road used to create the new road, will be passed onto the newly created road. 
+
+
+### Simplify intersections
+
+Finally, we simplify intersections. 
+First, we cluster the nodes using the dbscan method, which clusters points in Euclidean space.  Since nodes that are close in Euclidean space may not be connected on the network, the second step is to verify that these clustered nodes are in fact connected on the network.
+
+### Contract network
+Finally, we contract the network. This takes the (Euclidean) centroid of the cluster and turns it into a node, deletes the individual nodes that were in the cluster, and moves the edges so that they end (and hence connect) at the centroid.
+
+### Re-create sfnetworks object
+
+Now that our road network has been downloaded from OSM, projected, pulled into sfnetworks and cleaned, only one step remains: accurately calculating edge weights. 
+
+First, we convert the road network from the last step into an sf object. We then convert it back to sfnetworks, this time using the length_as_weight=TRUE option.
+```{r,message=FALSE, warning=FALSE}
 #Extract lines data
-osm_roads_data<-modify_Linesdata(osm_data, road_types = c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
-                                                          'secondary_link' ,'tertiary' , 'tertiary_link' ),road_levels = NULL, crs=9766)
+osm_roads_data<-modify_Linesdata(osm_data, road_types = c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link' ,'tertiary' , 'tertiary_link' ),road_levels = NULL, crs=9766)
 
 
 
 #Extract polygon data
-osm_polygon_data<-modify_Polygondata(osm_data,road_types=c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
-                                                           'secondary_link' ,'tertiary' , 'tertiary_link' ), road_levels = NULL, crs=9766 )
+osm_polygon_data<-modify_Polygondata(osm_data,road_types=c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link' ,'tertiary' , 'tertiary_link' ), road_levels = NULL, crs=9766 )
 
 #Data processing on lines data
 osm_roads_processed<-lineString_rounding(osm_roads_data,rounding=3) %>% as_sfnetwork(directed= FALSE) %>% simplify_sf_data()
@@ -58,8 +126,26 @@ joined_script <- st_network_join(osm_roads_processed, osm_polygons_processed) %>
 
 
 
+
 #Visualise processed network
-```{r}
+
+# Visualisation
+
+There are two main ways to visualise sfnetworks objects. The first is by using the autoplot function. This is a great way for obtaining simple visualisations: it shows the road network with its edges and nodes. We have already seen some examples of this.
+
+The autoplot function is quick & easy to use. However, if you want some really nice visualisations, the best way to obtain these is by tmap library.
+
+
+To compare changes before and after road network condensation:
+1) Save roads.clean.data as roads.clean.data.eps1 using eps=1 for dbscan function.
+2) Save roads.clean.points as roads.clean.points.eps1 using eps=1 for dbscan function.
+
+Plot the following graphs in a seperate .rmd script using .eps5 dataframes, and compare the changes made to eps greater than 1. 
+I have observed that at eps=70, all the roundabouts in the following examples, and have now been converted to simple junctions. Its good to progressively change the eps value and observe the changes in the following plots [might help to detect any unwanted modifications]. 
+
+
+We can of course also plot the nodes, either by themselves or on top of the road network.
+```{r,message=FALSE, warning=FALSE}
 ################################Plotting###############################################
 autoplot(joined_script) # a quick easy way to visualise the processed network. 
 
@@ -72,7 +158,9 @@ viewSf_network(joined_script)  # another way to visualise the network is through
 
 #Deriving origin destination (OD) points from UK-Census data.
 The od points are mapped onto the nearest nodes within the processed network. These are then visualised by layering it on to the processed network. 
-```{r}
+
+Origin and destination (OD) points are derived from UK census 2011. These OD points need to be placed on the network. However, if the coordinates of OD points do not match to that of the network nodes, then the nearest node to the OD points are identified.  This is done by the function st_nearest_feature(). 
+```{r,message=FALSE, warning=FALSE}
 #Derive OD points from UK census for the selected region and add them on the network
 #View(pct_regions_lookup)
 censusOD_data<-extract_CensusOD_data(region="oxford", crs=9766)
@@ -95,7 +183,7 @@ tm_tiles("CartoDB.Positron") +
 #Creating A-matrix.
 This involves finding all shortest path between every pair of OD nodes. Meta data related to traffic counts from census data is also added onto A matrix. 
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 #Create A-matrix
 censusOD_points_df<-as.data.frame(mapped_OD_nodes)
 a_matrix_list<-create_Amatrix(processed_roadNetwork=joined_script, census_ODs=censusOD_points_df,sd=0.3)
@@ -103,10 +191,16 @@ traffic_counts<-metaData_trafficCounts(a_matrix_list, censusOD_points, region="o
 ```
 
 
-#Shortest path
-Visualise shortest path between any given OD pairs.This helps in validating shortest path function in sf_network. 
+### Finding shortest path between the OD pairs
+In this example, one origin node and 4 destination nodes are taken to derive the shortest path using road lengths as weights. But before we calculate the shortest path, we first need to change the network from undirected to directed network.
+The function as_sfnetwork() has a default argument set to create directed network. What this essentially does is that it ensures that every edge in the network is allowed to traverse only once from its start node to its end node. This works well for one-way roads, but it limits the two way roads. Hence before we convert the network to a directed graph we first need to make the following modifications:
+      1) One way road information comes with OSM data, however this data needs to be cleaned before using it to direct the  network. Data cleaning includes: converting the one way street to a logical column, where any edge identified as one-way is set as TRUE and the rest as FALSE. This step is to be done at the very beginning of data extraction from OSM server.
+      2) All the two ways roads need to be extracted out of the network as an sf object, and their line string geometries needs to be reversed since as their edges can be traveled both ways.  The current network is converted to an sf object. The two sf objects are then combined.
+      
+      At this stage the combined sf_object is ready to be converted to a directed network. The new sf_network should have the same number of nodes, but almost double the number of edges (this depends on how many edges are one-way).
+      We do the above steps once all the network pre-processing steps are completed. Many of the functions (particularly the when it comes to removing pseudo nodes) associated with network pre-processing work the best with undirected network, but perform poorly with directed network. 
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 ################################### to view the processed network and shortest path#########################  
 #Shortest path network on a directed network - identifies shortest path between any two given vertices weighted by time traveled  column
 shortest_path<-shortest_pathInNetwork(joined_script,7,20,censusOD_points[[2]])
@@ -127,7 +221,7 @@ map
 
 
 #Random OD points from the exsisting sf_network.
-```{r}
+```{r,message=FALSE, warning=FALSE}
 ######################################################################################################### 
 #From user select OD points
 #First convert the dataframe which has latitude and longitude in separate columns as sf_object
@@ -199,7 +293,7 @@ joined_connectedNetwork <- joined_script %>%
 
 
 
-```{r}
+
 
 ####################################################################################################################
 #Incorporate user supplied traffic counts
@@ -224,4 +318,3 @@ tm_tiles("CartoDB.Positron") +
   tm_lines(col="green") +
   tm_shape((mapped_nodesToEdges))+
   tm_dots(col="red") 
-```
