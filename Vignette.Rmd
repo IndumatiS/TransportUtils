@@ -18,7 +18,7 @@ library(TransportUtils)
 #Clear all objects in the global environment
 rm(list = ls())
 
-# #Detach package
+# Detach package
 #if("TransportUtils" %in% (.packages())){
 #detach("package:TransportUtils", unload=TRUE) 
 #}
@@ -125,6 +125,17 @@ joined_script <- st_network_join(osm_roads_processed, osm_polygons_processed) %>
 ```
 
 
+
+```{r}
+#Call RoadTransportModel function which does the entire above code chunk in one function
+
+joined_script_newFun<-RoadTransportModel(arg1=c(-2.813331,-2.784835,54.042449,54.057163), 
+                         arg2=c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
+                                'secondary_link' ,'tertiary' , 'tertiary_link' ),
+                         arg3= NULL,
+                         arg4 = 9766)
+
+```
 
 
 #Visualise processed network
