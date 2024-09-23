@@ -36,7 +36,7 @@ osm_data<-extract_data( c(-1.41785, -1.09785, 51.59201, 51.91201))
 #liverpool - c( -3.169003, -2.795235, 53.344871, 53.494705)
 #reading - c( -1.061579,  -0.879234, 51.423914, 51.485112) region= "berkshire"
 #leeds - c(-2.049094, -1.103631, 53.308279,53.983995)
-# - c(-2.813331,-2.784835,54.042449,54.057163)
+# lanchaster- c(-2.813331,-2.784835,54.042449,54.057163)
 ```
 
 
@@ -125,11 +125,11 @@ joined_script <- st_network_join(osm_roads_processed, osm_polygons_processed) %>
 ```
 
 
-
-```{r}
+A wrapper function also exists that produces a modeled road network using the above set of functions. 
+```{r,,message=FALSE, warning=FALSE}
 #Call RoadTransportModel function which does the entire above code chunk in one function
 
-joined_script_newFun<-RoadTransportModel(arg1=c(-2.813331,-2.784835,54.042449,54.057163), 
+joined_script_newFun<-RoadTransportModel(arg1=c(-1.41785, -1.09785, 51.59201, 51.91201), 
                          arg2=c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
                                 'secondary_link' ,'tertiary' , 'tertiary_link' ),
                          arg3= NULL,
@@ -147,11 +147,6 @@ There are two main ways to visualise sfnetworks objects. The first is by using t
 The autoplot function is quick & easy to use. However, if you want some really nice visualisations, the best way to obtain these is by tmap library.
 
 
-To compare changes before and after road network condensation:
-1) Save roads.clean.data as roads.clean.data.eps1 using eps=1 for dbscan function.
-2) Save roads.clean.points as roads.clean.points.eps1 using eps=1 for dbscan function.
-
-Plot the following graphs in a seperate .rmd script using .eps5 dataframes, and compare the changes made to eps greater than 1. 
 I have observed that at eps=70, all the roundabouts in the following examples, and have now been converted to simple junctions. Its good to progressively change the eps value and observe the changes in the following plots [might help to detect any unwanted modifications]. 
 
 
@@ -161,6 +156,13 @@ We can of course also plot the nodes, either by themselves or on top of the road
 autoplot(joined_script) # a quick easy way to visualise the processed network. 
 
 viewSf_network(joined_script)  # another way to visualise the network is through tmap library. 
+#list(a=c(1:3),b=c(2;4)) name the list.
+################################Plotting###############################################
+
+################################Plotting###############################################
+autoplot(joined_script_newFun) # a quick easy way to visualise the processed network. 
+
+viewSf_network(joined_script_newFun)  # another way to visualise the network is through tmap library. 
 #list(a=c(1:3),b=c(2;4)) name the list.
 ################################Plotting###############################################
 
@@ -179,7 +181,8 @@ mapped_OD_nodes<-addODnodes(lat_col="X", long_col="Y", crs=9766, sf_network_dire
 
 #Map all the OD points nearest to the nodes on the final network
 tmap_mode("view") # set to interactive mode
-tm_tiles("CartoDB.Positron") +
+
+map<-tm_tiles("CartoDB.Positron") +
   tm_shape(st_as_sf(joined_script, "edges")) +
   tm_lines(col= "highway", palette = "Accent", lwd=5) +
   tm_shape(st_as_sf(joined_script, "nodes")) +
@@ -204,7 +207,7 @@ traffic_counts<-metaData_trafficCounts(a_matrix_list, censusOD_points, region="o
 
 ### Finding shortest path between the OD pairs
 In this example, one origin node and 4 destination nodes are taken to derive the shortest path using road lengths as weights. But before we calculate the shortest path, we first need to change the network from undirected to directed network.
-The function as_sfnetwork() has a default argument set to create directed network. What this essentially does is that it ensures that every edge in the network is allowed to traverse only once from its start node to its end node. This works well for one-way roads, but it limits the two way roads. Hence before we convert the network to a directed graph we first need to make the following modifications:
+The function as_sfnetwork() has a default argument set to create directed network. What this essentially does is it ensures every edge in the network is allowed to traverse only once from its start node to its end node. This works well for one-way roads, but it limits the two way roads. Hence before we convert the network to a directed graph we first need to make the following modifications:
       1) One way road information comes with OSM data, however this data needs to be cleaned before using it to direct the  network. Data cleaning includes: converting the one way street to a logical column, where any edge identified as one-way is set as TRUE and the rest as FALSE. This step is to be done at the very beginning of data extraction from OSM server.
       2) All the two ways roads need to be extracted out of the network as an sf object, and their line string geometries needs to be reversed since as their edges can be traveled both ways.  The current network is converted to an sf object. The two sf objects are then combined.
       
@@ -232,6 +235,7 @@ map
 
 
 #Random OD points from the exsisting sf_network.
+This is an example to demonstrate how to randomly choose OD point from network nodes. This is used when OD data is missing. 
 ```{r,message=FALSE, warning=FALSE}
 ######################################################################################################### 
 #From user select OD points
@@ -284,7 +288,7 @@ map<-draw_tmap(sf_network_directed=joined_script,
                #OD_sf_network=nodes_df,
                ToRowNumber=1, 
                FromRowNumber=2)
-
+map
 
 ####################################################################################################################
 #To validate the output of the a_matrix function, one of the columns need to be selected and the rows which are part of the network 
@@ -302,11 +306,13 @@ joined_connectedNetwork <- joined_script %>%
 
 
 
+### Add meta data - Traffic counts
+The geographic coordinates of traffic count collection sites can also be added onto the contracted network. This provides meta data information around how frequently a road is being utilised. 
 
-
-
-
+In this example, the "link data" is used. This data is provided as part of the Transport Utils package. 
 ####################################################################################################################
+
+```{r}
 #Incorporate user supplied traffic counts
 data("link_data") #only for Oxford region
 mapped_nodesToEdges<-mapToEdges(userData=link_data, 
@@ -327,5 +333,8 @@ tm_tiles("CartoDB.Positron") +
   tm_dots() +
   tm_shape((mapped_ToEdgesdf))+
   tm_lines(col="green") +
-  tm_shape((mapped_nodesToEdges))+
+  tm_shape((mapped_nodesToEdges[[3]]))+
   tm_dots(col="red") 
+```
+
+
