@@ -1,11 +1,20 @@
 ---
-title: "TransportUtlis_ vignette"
+title: "TransportUtlis vignette"
 output:
   html_document: default
   pdf_document: default
-date: "2024-08-23"
-Author: Indumati Sharma and Martin Hazelton
+date: "2024-09-24"
+author:
+  - name: Indumati Sharma
+    address: Department of Mathematics and Statistics, University of Otago
+    email: indumati_sharma@hotmail.com
+  - name: Martin Hazelton
+    address: Department of Mathematics and Statistics, University of Otago
+    email: martin.hazelton@otago.ac.nz
 ---
+
+### Introduction
+This vignettes details how to model road network using functions from TransportUtils library. 
 
 #Network processing
 Data is extracted from open source map (OSM)- both lines and polygon data is extracted. The data is modified to be compatible for network processing. 

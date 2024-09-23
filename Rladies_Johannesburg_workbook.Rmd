@@ -1,0 +1,348 @@
+---
+title: "Vignette on constructing TransportUtlis package"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-09-24"
+author:
+  - name: Indumati Sharma
+    address: Department of Mathematics and Statistics, University of Otago
+    email: indumati_sharma@hotmail.com
+  - name: Martin Hazelton
+    address: Department of Mathematics and Statistics, University of Otago
+    email: martin.hazelton@otago.ac.nz
+---
+
+### Introduction
+This vignettes details how road modelling part of TransportUtils library functions were constructed. Many of the techniques for road network modelling have been adapted from: https://github.com/rladies/meetup-presentations_jozi/blob/master/sfnetworks-nov-2021/sfnetworks.Rmd
+
+
+```{r,message=FALSE, warning=FALSE}
+#get streets from open street map and try shortest path directly 
+library(osmdata)
+library(igraph)
+library(dplyr)
+library(sf)
+library(sfnetworks)
+library(tidygraph)
+library(osmextract)
+library(tidyr)
+library(tmap)
+library(ggplot2)
+library(pct)
+
+#source("C:/Users/shain42p/OneDrive - University of Otago/MathsAndStat_InverseProblem/R/Transport_function_script.R")
+```
+
+```{r,message=FALSE, warning=FALSE}
+#Oxford - c(-1.41785, -1.09785, 51.59201, 51.91201)
+#Derby =
+#bounding box
+bbx<-matrix(
+  data = c(-1.41785, -1.09785, 51.59201, 51.91201),
+  nrow = 2,
+  ncol = 2,
+  byrow= T,
+  dimnames = list(c('x','y'), c('min','max'))
+)
+  
+
+query<- bbx %>%
+  opq() %>%
+  add_osm_feature(
+    key= 'highway',
+    value = c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
+              'secondary_link' ,'tertiary' , 'tertiary_link' ,  'residential' ,'living_street', 'unclassified')
+  )
+
+sf_data<-osmdata_sf(query)
+
+```
+
+
+# sfnetworks
+
+For this analysis, I decided to keep only certain types of roads. The chunk below filters the sf object appropriately (to keep only main roads).
+
+```{r select road types,message=FALSE, warning=FALSE}
+
+#Prepare two road types: road lines and road polygons
+####################################################################################
+#Road lines
+roads.data <- st_transform(sf_data$osm_lines, crs = 9766)
+
+
+wanted_roads<-c('motorway', 'motorway_link', 'trunk','trunk_link', 'primary', 'primary_link', 'secondary',
+              'secondary_link' ,'tertiary' , 'tertiary_link')
+roads.data<-roads.data[roads.data$highway %in% wanted_roads,]
+
+
+roads.data<-roads.data %>% select(osm_id, highway ,oneway, maxspeed,geometry) %>% as.data.frame()
+
+
+roads.data$maxspeed<-as.numeric(gsub("([0-9]+).*$", "\\1", roads.data$maxspeed))
+
+dplyr.roads.data<-roads.data %>% select(-geometry)%>% group_by(highway) %>% summarise(highway_median=median(maxspeed*1.60934, na.rm=TRUE)) #convert mph to kmph
+
+roads.data = merge(roads.data, dplyr.roads.data, by.x=c("highway", "highway"))
+
+roads.data <- st_as_sf(roads.data) %>% st_transform(crs=9766) %>%
+    mutate(oneway = case_when(oneway == 'yes' ~ TRUE,
+                           TRUE ~ FALSE))
+########################################################################################
+#Road polygons
+roads.polygons<-st_transform(sf_data$osm_polygons, crs = 9766)
+roads.polygons<-roads.polygons[roads.polygons$highway %in% wanted_roads,]
+roads.polygons<-roads.polygons %>% select(geometry, highway, oneway)
+
+roads.polygons <- st_as_sf(roads.polygons)  %>% 
+  st_transform((crs=9766)) %>% 
+  mutate(oneway = case_when(oneway == 'yes' ~ TRUE,
+                            TRUE ~ FALSE))
+
+```
+
+Before converting to sfnetwork, the sf object needs to undergo the following modifications:
+1) Convertion of geometry to linestring from multilinestrings. This will give a warning stating that the attributes are being repeated for all sub-geometries, and that this may not be accurate. (For example, if a multilinestring has a given speed limit associated with it, the linestrings will each have that speed limit.)
+2) Rounding the coordinates - Reducing the precision of coordinates will ensure that they are in the same place, thereby allowing sfnetworks to connect
+
+
+```{r linestrings and coordinates,message=FALSE, warning=FALSE}
+roads.data.lines <- st_cast(roads.data, "LINESTRING")
+roads.polygon.lines <- st_cast(roads.polygons, "LINESTRING")
+#Note for our purposes, the roads.data.wgs comes with "LINESTRING", not "MULTILINESTRING"
+
+st_geometry(roads.data.lines) = st_geometry(roads.data.lines) %>%
+  lapply(function(x) round(x, 3)) %>%
+  st_sfc(crs = st_crs(roads.data.lines))
+
+st_geometry(roads.polygon.lines) = st_geometry(roads.polygon.lines) %>%
+  lapply(function(x) round(x, 3)) %>%
+  st_sfc(crs = st_crs(roads.polygon.lines))
+```
+
+ 
+
+## Convert to sfnetworks
+
+Once the geometry is linestring and coordinate precision has been reduced, we convert the road network (currently an sf object) to sfnetwork object. Note the options used in this case. 
+
+Setting directed=FALSE means that we are creating an undirected graph. OSM does not typically contain directionality data in a way that can readily be transferred to a graph. Additionally, road networks typically are undirected, with roads being two-way.
+
+(In our case because we need to incorporate one way roads whilst calculating shortest path it is essential that the graph network needs to be directed in nature. This is only done once all the pre-processing is done on the network. See the section 7: Finding shortest path between the OD pairs).
+
+```{r convert to sfnetworks,message=FALSE, warning=FALSE}
+roads <- as_sfnetwork(roads.data.lines, directed= FALSE)
+
+```
+
+## Data cleaning
+
+### 1. Simplify
+A network may contain sets of edges that connect the same pair of nodes. Such edges can be called multiple edges. Also, it may contain an edge that starts and ends at the same node. Such an edge can be called a loop edge.
+
+In graph theory, a simple graph is defined as a graph that does not contain multiple edges nor loop edges. To obtain a simple version of our network, we can remove multiple edges and loop edges by calling tidygraphs edge filter functions tidygraph::edge_is_multiple() and tidygraph::edge_is_loop(). This step is critical, since skipping this step leads to improper output when we contract the network later on. 
+
+The first data cleaning step is to simplify the road network. This changes the graph from a multigraph to a simple graph, which is required for many graph operations.
+
+```{r,message=FALSE, warning=FALSE}
+simple = roads %>%
+  activate("edges") %>%
+  arrange(edge_length()) %>%
+  filter(!edge_is_multiple()) %>%
+  filter(!edge_is_loop())
+
+simple
+```
+
+
+
+#### 1.1 Add polygon information
+In order to simplify intersections (which is accomplished in the later part of the script), the roads defining the intersections need to be connected to the roads branching out of the intersections. In the context of roundabouts, the actual road that defines a roundabout needs to be present within a network in order for the intersection simplification function to work. In the current example, most of the roundabouts do not have roads connecting the road junctions. The road junctions simply stop at the roundabout area and do not connect with each other in any way. This is the reason as to why  intersection simplification is not working consistently across all the roundabouts (those roundabouts where such simplification is working have the junctions connected within the roundabout). 
+
+To overcome this problem, we need the junctions to be connected within the roundabout region. One approach is to extract polygon data for "Oxford" region (wherein the great majority of the data is related to roundabouts) and join them on the the lines data of "Oxford" region.
+
+The next trouble is to identify where in the script this step needs to be performed. At step 1 the lines data undergoes network simplification which includes removing multiple and looped edges. Since polygon data is a loop edge, performing the join operation (joining lines data with polygon data) will be useless, as polygon data will be removed. At the same time, step 1 is critical since multiple and looped edges have to be removed for network simplification. Hence, the join operation is done after Step 1, and the joined network object will then be carried on further for spatial network processing. 
+
+```{r,message=FALSE, warning=FALSE}
+roads.polygons<-as_sfnetwork(roads.polygon.lines, directed= FALSE)
+joined = st_network_join(simple, roads.polygons) %>% activate("edges") 
+```
+
+### 2. Subdivide
+Next, we subdivide edges which are junctions. At these points, new nodes are created. 
+```{r,message=FALSE, warning=FALSE}
+
+subdivision = convert(joined, to_spatial_subdivision)
+subdivision
+
+```
+
+### 3. Smooth pseudo nodes
+
+Next we need to remove redundant nodes. The way to_spatial_smooth operates depends on whether the graph is directed or not. In the case of directed network, pseudo nodes are those nodes that have only one incoming and one outgoing edge. In undirected networks, pseudo nodes are those nodes that have two incident edges.
+
+This is the step in which its important to ensure the graph is undirected since we need to remove nodes that have degree=2. In the argument summarise_attibute I have given "first" as the value. When the pseudo nodes are removed, the flanking roads are then connected. However, the question is what sort of attribute would the newly formed road take up? In the summarise_attributes argument the user can specify what kind of attribute the new road can take up. Here I have specified "first", which means that the attributes from the first road used to create the new road, will be passed onto the newly created road. 
+
+```{r smooth,message=FALSE, warning=FALSE}
+smoothed = convert(subdivision, to_spatial_smooth, summarise_attributes = "first")
+
+smoothed
+```
+
+### 4. Simplify intersections
+
+Finally, we simplify intersections. 
+First, we cluster the nodes using the dbscan method, which clusters points in Euclidean space. 
+
+```{r simplify intersections 1 ,message=FALSE, warning=FALSE}
+library(dbscan)
+
+
+
+# Retrieve the coordinates of the nodes.
+node_coords = smoothed %>%
+  activate("nodes") %>%
+  st_coordinates()
+
+# Cluster the nodes with the DBSCAN spatial clustering algorithm.
+# We set eps = 1 such that:
+# Nodes within a distance of 1 from each other will be in the same cluster.
+# We set minPts = 1 such that:
+# A node is assigned a cluster even if it is the only member of that cluster.
+clusters = dbscan(node_coords, eps = 80, minPts = 1)$cluster
+
+# Add the cluster information to the nodes of the network.
+clustered =  smoothed %>%
+  activate("nodes") %>%
+  mutate(cls = clusters)
+
+
+clustered.points <- clustered %>% 
+  activate("nodes") %>% 
+  st_as_sf()
+
+```
+
+Since nodes that are close in Euclidean space may not be connected on the network, the second step is to verify that these clustered nodes are in fact connected on the network.
+
+```{r simplify intersections 2 ,message=FALSE, warning=FALSE}
+clustered = clustered %>%
+  mutate(cmp = group_components())
+
+select(clustered, cls, cmp)
+```
+
+Finally, we contract the network. This takes the (Euclidean) centroid of the cluster and turns it into a node, deletes the individual nodes that were in the cluster, and moves the edges so that they end (and hence connect) at the centroid. 
+
+```{r simplify intersections 3 ,message=FALSE, warning=FALSE}
+contracted = convert(
+  clustered,
+  to_spatial_contracted,
+  cls, cmp,
+  simplify = TRUE
+)
+
+contracted
+```
+
+### 5. Re-create sfnetworks object
+
+Now that our road network has been downloaded from OSM, projected, pulled into sfnetworks and cleaned, only one step remains, i.e., accurately calculating edge weights. 
+
+First, we convert the road network from the last step into an sf object. We then convert it back to sfnetworks, this time using the length_as_weight=TRUE option.
+
+```{r lengths as weight ,message=FALSE, warning=FALSE}
+contracted.sf <- contracted %>% 
+  activate("edges") %>% 
+  st_as_sf() 
+roads.clean <- as_sfnetwork(contracted.sf, directed = FALSE, length_as_weight = TRUE)
+#Do we need to weighted roads? e.g., here weight is assigned based on road length
+
+#%>%filter(degree != 2)
+
+```
+
+
+# Visualisation
+
+There are two main ways to visualise sfnetworks objects. The first is by using the autoplot function. This is a great way for obtaining simple visualisations: it shows the road network with its edges and nodes. We have already seen some examples of this.
+
+The autoplot function is quick & easy to use. However, if you want some really nice visualisations, the best way to obtain these is by tmap library. You can experiment with different eps values to optimise road network construction. 
+
+
+I have observed that at eps=70, all the roundabouts in the following examples, and have now been converted to simple junctions. Its good to progressively change the eps value and observe the changes in the following plots [might help to detect any unwanted modifications]. 
+
+
+We can of course also plot the nodes, either by themselves or on top of the road network.
+
+### View tmap
+
+```{r View tmap ,message=FALSE, warning=FALSE}
+
+tmap_mode("view") # set to interactive mode
+tm_tiles("CartoDB.Positron") +
+tm_shape(st_as_sf(roads.clean, "edges")) +
+  tm_lines(col= "highway", palette = "Accent", lwd=5) +
+tm_shape(st_as_sf(roads.clean, "nodes")) +
+  tm_dots(text = "degree")
+
+```
+
+### 6. Adding in OD datapoints onto the current network
+Origin and destination (OD) points are derived from UK census 2011. These OD points need to be placed on the network. However, if the coordinates of OD points do not match to that of the network nodes, then the nearest node to the OD points are identified.  This is done by the function st_nearest_feature(). 
+
+```{r Add OD points,message=FALSE, warning=FALSE}
+
+#Get OD data
+oxford.desire.lines<-get_desire_lines("oxford")
+oxford.desire.lines<-oxford.desire.lines[oxford.desire.lines$geo_code1=="E02005940",]
+oxford.desire.lines<-st_transform(oxford.desire.lines, crs=9766)
+
+# Find indices of nearest nodes.
+nearest_nodes = st_nearest_feature(oxford.desire.lines, roads.clean)
+
+# Snap geometries of POIs to the network. 
+snapped_pois = oxford.desire.lines %>%
+  st_set_geometry(st_geometry(roads.clean)[nearest_nodes])
+
+
+tmap_mode("view") # set to interactive model
+tm_tiles("CartoDB.Positron") +
+tm_shape(st_as_sf(roads.clean, "edges")) +
+  tm_lines(col= "oneway", palette = "Accent", lwd=5) +
+tm_shape(st_as_sf(roads.clean, "nodes")) +
+  tm_dots(text = "degree") +
+tm_shape(st_as_sf(snapped_pois))+
+  tm_dots(col="red")
+```
+
+
+### 7. Finding shortest path between the OD pairs
+Before we calculate the shortest path, we first need to change the network from undirected to directed network.
+The function as_sfnetwork() has a default argument set to create directed network. What this essentially does is that it ensures that every edge in the network is allowed to traverse only once from its start node to its end node. This works well for one-way roads, but it limits the two way roads. Hence before we convert the network to a directed graph we first need to make the following modifications:
+      1) One way road information comes with OSM data, however this data needs to be cleaned before using it to direct the  network. Data cleaning includes: converting the one way street to a logical column, where any edge identified as one-way is set as TRUE and the rest as FALSE. This step is to be done at the very beginning of data extraction from OSM server.
+      2) All the two ways roads need to be extracted out of the network as an sf object, and their line string geometries needs to be reversed since as their edges can be travelled both ways.  The current network is converted to an sf object. The two sf objects are then combined.
+      At this stage the combined sf_object is ready to be converted to a directed network. The new sf_network should have the same number of nodes, but almost double the number of edges (this depends on how many edges are one-way).
+      We do the above steps once all the network pre-processing steps are completed. Many of the functions (particularly the when it comes to removing pseudo nodes) associated with network pre-processing works the best with undirected network, but perform poorly with directed network. 
+
+
+```{r,message=FALSE, warning=FALSE}
+roads.twoway<- roads.clean %>% 
+    activate("edges") %>%
+    filter(oneway==FALSE) %>%
+    st_reverse() %>%
+    st_as_sf()
+
+roads.clean.df<-roads.clean %>% 
+    activate("edges") %>%
+    st_as_sf()
+
+roads.clean.directed<-rbind(roads.clean.df, roads.twoway) %>% as_sfnetwork()
+
+
+```
+
+
+
+
